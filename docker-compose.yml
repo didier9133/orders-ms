@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  orders-db:
+    image: postgres:16.2
+    restart: always
+    environment:
+      POSTGRES_USER: decs
+      POSTGRES_PASSWORD: password_decs
+      POSTGRES_DB: orders
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
