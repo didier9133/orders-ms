@@ -1,8 +1,14 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { CreateOrderDto, PaginationOrderDTO, StatusOrderDTO } from './dto';
+import {
+  CreateOrderDto,
+  PaginationOrderDTO,
+  PaidOrderDTO,
+  StatusOrderDTO,
+} from './dto';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
+import { IOrder } from './interface';
 
 @Injectable()
 export class OrdersService {
@@ -158,5 +164,49 @@ export class OrdersService {
         status,
       },
     });
+  }
+
+  async createPaymentSession(order: IOrder) {
+    const paymentSession = await firstValueFrom(
+      this.client.send('create.payment.session', {
+        orderId: order.data.id,
+        currency: 'usd',
+        items: [
+          {
+            name: 'keyboard',
+            price: 50,
+            quantity: 2,
+          },
+          {
+            name: 'laptop',
+            price: 199.8,
+            quantity: 2,
+          },
+        ],
+      }),
+    );
+
+    return paymentSession;
+  }
+
+  async paidOrder(paidOrderDto: PaidOrderDTO) {
+    const updatedOrder = await this.prisma.order.update({
+      where: { id: paidOrderDto.orderId },
+      data: {
+        status: 'PAID',
+        paid: true,
+        paidAt: new Date(),
+        stripeChargeId: paidOrderDto.idStripe,
+
+        // la relacion de OrderReceipt
+        OrderReceipt: {
+          create: {
+            receiptUrl: paidOrderDto.urlReceiptStripe,
+          },
+        },
+      },
+    });
+
+    return updatedOrder;
   }
 }
